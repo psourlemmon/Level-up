@@ -15,7 +15,7 @@
             --accent-cyan: #36d1dc;
             --color-positive: #4ade80;
             --color-negative: #fb7185;
-            --color-warning: #fbbf24;
+            --color-gold: #fbbf24;
             --border: rgba(255, 255, 255, 0.1);
             --gradient: linear-gradient(90deg, #8b5cf6, #36d1dc);
         }
@@ -35,13 +35,14 @@
             color: var(--text-main);
             line-height: 1.4;
             min-height: 100vh;
-            padding-bottom: 90px; 
+            padding-bottom: 100px; 
         }
 
         .container { max-width: 900px; margin: 0 auto; padding: 16px; }
         .hidden { display: none !important; }
         .text-pos { color: var(--color-positive); }
         .text-neg { color: var(--color-negative); }
+        .text-gold { color: var(--color-gold); }
         
         .card { 
             background: var(--bg-card); 
@@ -67,7 +68,6 @@
             display: flex; align-items: center; justify-content: center; padding: 24px; 
         }
         .setup-content { max-width: 400px; width: 100%; text-align: center; }
-        .setup-content h2 { font-size: 2rem; margin: 16px 0 8px; }
 
         .field { margin-bottom: 16px; text-align: left; }
         label { display: block; color: var(--text-muted); font-size: 0.75rem; margin-bottom: 6px; text-transform: uppercase; font-weight: 600; }
@@ -116,25 +116,18 @@
 
         .section-title { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin: 24px 0 12px 4px; }
 
-        .toast {
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-            background: var(--accent-cyan); color: var(--bg-page); padding: 12px 24px;
-            border-radius: 50px; font-weight: 700; z-index: 3000; opacity: 0; transition: 0.3s;
-        }
-
         @media (max-width: 600px) {
             .attr-grid { grid-template-columns: 1fr; }
-            .date-pill { display: none; }
         }
     </style>
 </head>
 <body>
 
+    <!-- SETUP -->
     <div id="setup-overlay" class="hidden">
         <div class="setup-content">
             <h1 style="background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;">LEVEL UP</h1>
-            <h2>Begin Your Leveling</h2>
-            <p>Set your target balance and date to start.</p>
+            <h2 style="margin: 10px 0;">Begin Your Leveling</h2>
             <div class="field"><label>Target Coin Balance</label><input type="number" id="setup-target-coins" value="500"></div>
             <div class="field"><label>Target Date</label><input type="date" id="setup-target-date"></div>
             <button id="btn-start">START SYSTEM</button>
@@ -144,14 +137,15 @@
 
     <div class="container">
         <header>
-            <div><h1>Level Up</h1><p style="font-size: 0.6rem; color: var(--text-muted);">ONE ACTION AT A TIME</p></div>
+            <div><h1>Level Up</h1><p style="font-size: 0.6rem; color: var(--text-muted);">PERSONAL GROWTH TRACKER</p></div>
             <div class="date-pill" id="header-date">--</div>
         </header>
 
+        <!-- DASHBOARD -->
         <section id="view-dashboard">
             <div class="card">
                 <div id="balance-display" class="balance-huge">0</div>
-                <p class="balance-sub">Current Net Impact</p>
+                <p class="balance-sub">Current Net Impact (Incl. Achievement Thresholds)</p>
                 <div class="target-stats"><span id="txt-goal-coins">Goal: --</span><span id="txt-goal-date">Target: --</span></div>
                 <div class="progress-container"><div id="goal-bar" class="progress-bar" style="width: 0%"></div></div>
                 <div class="target-stats"><span id="txt-pace">+0 vs pace</span><span id="txt-days-left">-- days left</span></div>
@@ -182,12 +176,23 @@
             <div id="list-today" class="card" style="padding: 0;"></div>
         </section>
 
+        <!-- LOG -->
         <section id="view-log" class="hidden">
             <div class="card">
                 <h2>Log Activity</h2>
                 <div class="field" style="margin-top:15px;">
                     <label>Activity</label>
                     <select id="inp-activity">
+                        <optgroup label="Achievements (Repeatable)">
+                            <option value="finish_book">🏆 Finished a Book (+50)</option>
+                            <option value="homecooked">🍳 Homecooked Meal (+5)</option>
+                            <option value="clean_day">✨ Clean Day (No Negative Acts) (+25)</option>
+                            <option value="laundry_all">🧺 Finished all Laundry (+25)</option>
+                            <option value="house_clean">🧹 Fully Cleaned House (+25)</option>
+                            <option value="improvement">🛠️ Home Improvement Project (+100)</option>
+                            <option value="golf_9">⛳ Golf 9 Holes Alone (+10)</option>
+                            <option value="golf_18">⛳ Golf 18 Holes Alone (+25)</option>
+                        </optgroup>
                         <optgroup label="Earn Coins">
                             <option value="workout">🏋️ Workout (10/hr)</option>
                             <option value="cardio">🏃 Cardio (20/hr)</option>
@@ -197,14 +202,13 @@
                             <option value="laundry">🧺 Laundry (40/hr)</option>
                             <option value="cleaning">🧹 Cleaning (30/hr)</option>
                             <option value="journaling">📓 Journaling (10/hr)</option>
-                            <option value="cooking">🍳 Cooking (5/hr)</option>
                         </optgroup>
                         <optgroup label="Spend Coins">
+                            <option value="negative_etc">⚠️ Negative Etc. (-40)</option>
                             <option value="purchase">💸 Impulse Purchase (-100)</option>
                             <option value="games">🎮 Video Games (20/hr)</option>
                             <option value="tv">📺 TV (10/hr)</option>
                             <option value="social">📱 Social Media (40/hr)</option>
-                            <option value="excess">⚠️ Excess (40/event)</option>
                         </optgroup>
                     </select>
                 </div>
@@ -212,18 +216,20 @@
                 <div class="field" id="duration-wrap"><label>Duration (Hours)</label><input type="number" id="inp-duration" value="1.00" step="0.25" min="0.25"></div>
                 <div class="field"><label>Note</label><input type="text" id="inp-note" maxlength="120"></div>
                 <div id="log-preview" style="text-align: center; margin: 16px 0; font-weight: 700;"></div>
-                <button id="btn-submit">LOG ACTIVITY</button>
+                <button id="btn-submit">LOG ACTION</button>
             </div>
         </section>
 
+        <!-- HISTORY -->
         <section id="view-history" class="hidden">
             <div class="card">
                 <h2>History</h2>
-                <div class="field"><label>Filter</label><select id="inp-filter"><option value="all">All</option><option value="positive">Earned</option><option value="negative">Spent</option></select></div>
+                <div class="field"><label>Filter</label><select id="inp-filter"><option value="all">All</option><option value="positive">Positive</option><option value="negative">Negative</option></select></div>
                 <div id="list-history"></div>
             </div>
         </section>
 
+        <!-- SETTINGS -->
         <section id="view-settings" class="hidden">
             <div class="card">
                 <h2>Goal</h2>
@@ -250,10 +256,21 @@
     </nav>
 
     <input type="file" id="file-inp" class="hidden" accept=".json">
-    <div id="toast" class="toast">Success!</div>
 
     <script>
+        /** DATA DEFINITIONS **/
         const ACTS = {
+            // Repeatable Achievements
+            finish_book: { label: 'Finished a Book', icon: '🏆', rate: 50, isEvent: true, isAch: true },
+            homecooked: { label: 'Homecooked Meal', icon: '🍳', rate: 5, isEvent: true, isAch: true },
+            clean_day: { label: 'Clean Day (No Negative)', icon: '✨', rate: 25, isEvent: true, isAch: true },
+            laundry_all: { label: 'Finished all Laundry', icon: '🧺', rate: 25, isEvent: true, isAch: true },
+            house_clean: { label: 'Fully Cleaned House', icon: '🧹', rate: 25, isEvent: true, isAch: true },
+            improvement: { label: 'Home Improvement Project', icon: '🛠️', rate: 100, isEvent: true, isAch: true },
+            golf_9: { label: 'Golf 9 Holes Alone', icon: '⛳', rate: 10, isEvent: true, isAch: true },
+            golf_18: { label: 'Golf 18 Holes Alone', icon: '⛳', rate: 25, isEvent: true, isAch: true },
+            
+            // Standard Activities
             workout: { label: 'Workout', icon: '🏋️', rate: 10, attr: 'body' },
             cardio: { label: 'Cardio', icon: '🏃', rate: 20, attr: 'body' },
             stretching: { label: 'Stretching', icon: '🧘', rate: 40, attr: 'body' },
@@ -262,26 +279,34 @@
             laundry: { label: 'Laundry', icon: '🧺', rate: 40, attr: 'spirit' },
             cleaning: { label: 'Cleaning', icon: '🧹', rate: 30, attr: 'spirit' },
             journaling: { label: 'Journaling', icon: '📓', rate: 10, attr: 'spirit' },
-            cooking: { label: 'Cooking', icon: '🍳', rate: 5, attr: 'spirit' },
+
+            // Negative
+            negative_etc: { label: 'Negative Etc.', icon: '⚠️', rate: -40, isEvent: true },
             purchase: { label: 'Impulse Purchase', icon: '💸', rate: -100, isEvent: true },
             games: { label: 'Video Games', icon: '🎮', rate: -20 },
             tv: { label: 'TV', icon: '📺', rate: -10 },
-            social: { label: 'Social Media', icon: '📱', rate: -40 },
-            excess: { label: 'Excess', icon: '⚠️', rate: -40, isEvent: true }
+            social: { label: 'Social Media', icon: '📱', rate: -40 }
         };
 
         let state = { setupComplete: false, setupDate: null, targetCoins: 500, targetDate: null, entries: [] };
 
-        const save = () => localStorage.setItem('levelup_v2', JSON.stringify(state));
+        /** SYSTEM LOGIC **/
+        const save = () => localStorage.setItem('levelup_v4', JSON.stringify(state));
         const fmt = (d) => d.toISOString().split('T')[0];
         const getDays = (d1, d2) => Math.floor((new Date(d2 + 'T00:00:00') - new Date(d1 + 'T00:00:00')) / 86400000);
 
         const calcStats = () => {
             const today = fmt(new Date());
-            const res = { mind: 25, body: 25, spirit: 25, regs: {} };
+            const res = { mind: 25, body: 25, spirit: 25, regs: {}, thresholdBonus: 0 };
+            
             ['mind', 'body', 'spirit'].forEach(k => {
-                const q = state.entries.filter(e => k === 'spirit' ? ['laundry','cleaning','journaling','cooking'].includes(e.activityKey) : ACTS[e.activityKey].attr === k);
+                const q = state.entries.filter(e => {
+                    const a = ACTS[e.activityKey];
+                    if (k === 'spirit') return ['laundry','cleaning','journaling'].includes(e.activityKey);
+                    return a.attr === k;
+                });
                 res[k] += q.length;
+
                 const dates = [...new Set(q.map(e => e.date))].sort();
                 let streak = 0;
                 for (let i = 0; i <= getDays(state.setupDate, today); i++) {
@@ -289,11 +314,16 @@
                     if (dates.includes(cd)) streak = 0; else { streak++; if (streak === 3) { res[k] -= 5; streak = 0; } }
                     if (cd === today) {
                         if (dates.includes(today)) res.regs[k] = "Active today.";
-                        else if (streak === 0) res.regs[k] = "No full inactive days yet.";
-                        else res.regs[k] = `${streak} inactive. ${3-streak} day until -5.`;
+                        else if (streak === 0) res.regs[k] = "No full inactive days.";
+                        else res.regs[k] = `${streak} inactive. ${3-streak} until -5.`;
                     }
                 }
                 res[k] = Math.max(0, Math.min(100, res[k]));
+
+                // Threshold bonuses (Non-repeatable)
+                if (res[k] >= 50) res.thresholdBonus += 50;
+                if (res[k] >= 75) res.thresholdBonus += 100;
+                if (res[k] >= 100) res.thresholdBonus += 200;
             });
             return res;
         };
@@ -301,28 +331,37 @@
         const render = () => {
             if (!state.setupComplete) { document.getElementById('setup-overlay').classList.remove('hidden'); const d = new Date(); d.setDate(d.getDate()+30); document.getElementById('setup-target-date').value = fmt(d); return; }
             document.getElementById('setup-overlay').classList.add('hidden');
+
             const today = fmt(new Date());
             const stats = calcStats();
-            const bal = state.entries.reduce((s, e) => s + e.coins, 0);
+            const entryCoins = state.entries.reduce((s, e) => s + e.coins, 0);
+            const totalBalance = entryCoins + stats.thresholdBonus;
+
             document.getElementById('header-date').textContent = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-            document.getElementById('balance-display').textContent = bal;
-            document.getElementById('balance-display').className = 'balance-huge ' + (bal >= 0 ? 'text-pos' : 'text-neg');
+            document.getElementById('balance-display').textContent = totalBalance;
+            document.getElementById('balance-display').className = 'balance-huge ' + (totalBalance >= 0 ? 'text-pos' : 'text-neg');
+
             const total = getDays(state.setupDate, state.targetDate);
             const elap = getDays(state.setupDate, today);
             const pace = Math.round((elap / total) * state.targetCoins);
+            const paceDiff = totalBalance - pace;
+
             document.getElementById('txt-goal-coins').textContent = `Goal: ${state.targetCoins}`;
             document.getElementById('txt-goal-date').textContent = `End: ${state.targetDate}`;
-            document.getElementById('goal-bar').style.width = Math.max(0, Math.min(100, (bal / state.targetCoins) * 100)) + '%';
-            document.getElementById('txt-pace').textContent = `${bal-pace>=0?'+':''}${bal-pace} vs pace`;
-            document.getElementById('txt-pace').className = bal-pace >= 0 ? 'text-pos' : 'text-neg';
+            document.getElementById('goal-bar').style.width = Math.max(0, Math.min(100, (totalBalance / state.targetCoins) * 100)) + '%';
+            document.getElementById('txt-pace').textContent = `${paceDiff>=0?'+':''}${paceDiff} vs pace`;
+            document.getElementById('txt-pace').className = paceDiff >= 0 ? 'text-pos' : 'text-neg';
             document.getElementById('txt-days-left').textContent = `${getDays(today, state.targetDate)} days left`;
+
             ['mind', 'body', 'spirit'].forEach(k => {
                 document.getElementById(`val-${k}`).textContent = stats[k];
                 document.getElementById(`bar-${k}`).style.width = stats[k] + '%';
                 document.getElementById(`reg-${k}`).textContent = stats.regs[k];
             });
+
             const tEntries = state.entries.filter(e => e.date === today);
-            document.getElementById('list-today').innerHTML = tEntries.length ? tEntries.map(e => renderItem(e, false)).join('') : '<p style="padding:20px;text-align:center;opacity:0.5;">Empty</p>';
+            document.getElementById('list-today').innerHTML = tEntries.length ? tEntries.map(e => renderItem(e, false)).join('') : '<p style="padding:20px;text-align:center;opacity:0.5;">Nothing logged today.</p>';
+
             const ds = document.getElementById('inp-date'); ds.innerHTML = '';
             for(let i=0; i<=3; i++) { const d = new Date(); d.setDate(d.getDate()-i); const dsf = fmt(d); ds.innerHTML += `<option value="${dsf}">${i===0?'Today':i+' days ago'} (${dsf})</option>`; }
             renderHistory();
@@ -333,8 +372,11 @@
             const locked = getDays(e.date, fmt(new Date())) > 3;
             return `<div class="history-item">
                 <div class="history-icon">${a.icon}</div>
-                <div class="history-info"><div class="history-title">${a.label}</div><div class="history-meta">${e.date} • ${a.isEvent ? 'Event' : e.duration+'h'}</div></div>
-                <div class="history-coins ${e.coins>=0?'text-pos':'text-neg'}">${e.coins>=0?'+':''}${e.coins}${del ? (locked ? '' : `<br><button class="del-btn" onclick="delItem('${e.id}')">Delete</button>`) : ''}</div>
+                <div class="history-info"><div class="history-title">${a.label}</div><div class="history-meta">${e.date} • ${a.isEvent ? 'Achievement/Event' : e.duration+'h'}</div></div>
+                <div class="history-coins ${e.coins>=0 ? (a.isAch ? 'text-gold' : 'text-pos') : 'text-neg'}">
+                    ${e.coins>=0?'+':''}${e.coins}
+                    ${del ? (locked ? '' : `<br><button class="del-btn" onclick="delItem('${e.id}')">Delete</button>`) : ''}
+                </div>
             </div>`;
         };
 
@@ -346,6 +388,7 @@
             document.getElementById('list-history').innerHTML = list.map(e => renderItem(e)).join('');
         };
 
+        /** INTERACTIONS **/
         window.delItem = (id) => { state.entries = state.entries.filter(e => e.id !== id); save(); render(); };
 
         document.querySelectorAll('.nav-item').forEach(i => i.onclick = () => {
@@ -365,7 +408,7 @@
             const k = document.getElementById('inp-activity').value; const a = ACTS[k]; const d = parseFloat(document.getElementById('inp-duration').value) || 0;
             document.getElementById('duration-wrap').style.display = a.isEvent ? 'none' : 'block';
             const coins = a.isEvent ? a.rate : Math.round(a.rate * d);
-            document.getElementById('log-preview').innerHTML = `<span class="${coins>=0?'text-pos':'text-neg'}">${coins>=0?'+':''}${coins} Coins</span> • ${a.attr?a.attr.toUpperCase():'No Stat'}`;
+            document.getElementById('log-preview').innerHTML = `<span class="${coins>=0?'text-pos':'text-neg'}">${coins>=0?'+':''}${coins} Coins</span> • ${a.attr?a.attr.toUpperCase(): (a.isAch ? 'ACHIEVEMENT' : 'NO STAT')}`;
         };
 
         document.getElementById('inp-activity').onchange = updatePreview;
@@ -373,13 +416,14 @@
 
         document.getElementById('btn-submit').onclick = () => {
             const k = document.getElementById('inp-activity').value; const a = ACTS[k];
-            state.entries.push({ id: 'id'+Date.now(), activityKey: k, date: document.getElementById('inp-date').value, duration: a.isEvent ? 0 : parseFloat(document.getElementById('inp-duration').value), note: document.getElementById('inp-note').value, coins: a.isEvent ? a.rate : Math.round(a.rate * parseFloat(document.getElementById('inp-duration').value)), timestamp: Date.now() });
+            const dur = parseFloat(document.getElementById('inp-duration').value);
+            state.entries.push({ id: 'id'+Date.now(), activityKey: k, date: document.getElementById('inp-date').value, duration: a.isEvent ? 0 : dur, note: document.getElementById('inp-note').value, coins: a.isEvent ? a.rate : Math.round(a.rate * dur), timestamp: Date.now() });
             document.getElementById('inp-note').value = ''; save(); render();
         };
 
         document.getElementById('btn-export').onclick = () => {
             const blob = new Blob([JSON.stringify(state)], {type: 'application/json'});
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `level_up_save.json`; a.click();
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `levelup_save.json`; a.click();
         };
 
         document.getElementById('file-inp').onchange = (e) => {
@@ -387,10 +431,10 @@
         };
         document.getElementById('btn-import-setup').onclick = () => document.getElementById('file-inp').click();
         document.getElementById('btn-import-main').onclick = () => document.getElementById('file-inp').click();
-        document.getElementById('btn-reset').onclick = () => { if(confirm("Reset?")) { localStorage.clear(); location.reload(); } };
+        document.getElementById('btn-reset').onclick = () => { if(confirm("Reset everything?")) { localStorage.clear(); location.reload(); } };
         document.getElementById('btn-update-goal').onclick = () => { state.targetCoins = parseInt(document.getElementById('set-target-coins').value); state.targetDate = document.getElementById('set-target-date').value; save(); render(); };
 
-        const stored = localStorage.getItem('levelup_v2'); if (stored) state = JSON.parse(stored);
+        const stored = localStorage.getItem('levelup_v4'); if (stored) state = JSON.parse(stored);
         render(); updatePreview();
     </script>
 </body>
