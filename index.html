@@ -1,441 +1,304 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Level Up | Life Tracker</title>
-    <style>
-        :root {
-            --bg-page: #080b16;
-            --bg-card: #10152a;
-            --bg-secondary: #171d36;
-            --text-main: #f4f6ff;
-            --text-muted: #98a2c4;
-            --accent-purple: #8b5cf6;
-            --accent-cyan: #36d1dc;
-            --color-positive: #4ade80;
-            --color-negative: #fb7185;
-            --color-gold: #fbbf24;
-            --border: rgba(255, 255, 255, 0.1);
-            --gradient: linear-gradient(90deg, #8b5cf6, #36d1dc);
-        }
+import React, { useState, useEffect } from 'react';
+import confetti from 'canvas-confetti';
+import { PlusCircle, Sparkles, FolderPlus, Clock, Check, Volume2, Flame } from 'lucide-react';
+import { CategoryItem, SkillType } from '../types';
+import { soundFx } from '../utils/sound';
+import { formatDate } from '../utils/calculations';
 
-        * { 
-            box-sizing: border-box; 
-            margin: 0; padding: 0; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
+interface LogActivityProps {
+  categories: CategoryItem[];
+  soundEnabled: boolean;
+  onLogSubmit: (activityKey: string, date: string, duration: number, note: string) => void;
+  onOpenCategoryModal: () => void;
+}
 
-        body {
-            background-color: var(--bg-page);
-            background-image: 
-                radial-gradient(circle at top right, rgba(139, 92, 246, 0.12), transparent 400px),
-                radial-gradient(circle at bottom left, rgba(54, 209, 220, 0.12), transparent 400px);
-            color: var(--text-main);
-            line-height: 1.4;
-            min-height: 100vh;
-            padding-bottom: 100px; 
-        }
+export const LogActivity: React.FC<LogActivityProps> = ({
+  categories,
+  soundEnabled,
+  onLogSubmit,
+  onOpenCategoryModal,
+}) => {
+  const [selectedKey, setSelectedKey] = useState<string>(categories[0]?.id || 'make_bed');
+  const [duration, setDuration] = useState<number>(1.0);
+  const [note, setNote] = useState<string>('');
+  const [isLogged, setIsLogged] = useState<boolean>(false);
+  const [loggedDetails, setLoggedDetails] = useState<{ coins: number; label: string } | null>(null);
 
-        .container { max-width: 900px; margin: 0 auto; padding: 16px; }
-        .hidden { display: none !important; }
-        .text-pos { color: var(--color-positive); }
-        .text-neg { color: var(--color-negative); }
-        .text-gold { color: var(--color-gold); }
-        
-        .card { 
-            background: var(--bg-card); 
-            border: 1px solid var(--border); 
-            border-radius: 16px; 
-            padding: 20px; 
-            margin-bottom: 16px; 
-            box-shadow: 0 4px 20px rgba(0,0,0,0.4); 
-        }
+  // Find active category
+  const activeCat = categories.find((c) => c.id === selectedKey) || categories[0];
 
-        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding: 0 4px; }
-        header h1 { 
-            font-size: 1.4rem; 
-            background: var(--gradient); 
-            -webkit-background-clip: text; 
-            -webkit-text-fill-color: transparent; 
-            font-weight: 800; text-transform: uppercase; letter-spacing: 1px; 
-        }
-        .date-pill { background: var(--bg-secondary); padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; color: var(--text-muted); border: 1px solid var(--border); }
+  useEffect(() => {
+    if (activeCat && activeCat.isEvent) {
+      setDuration(0);
+    } else if (duration === 0) {
+      setDuration(1.0);
+    }
+  }, [selectedKey]);
 
-        #setup-overlay { 
-            position: fixed; inset: 0; background: var(--bg-page); z-index: 2000; 
-            display: flex; align-items: center; justify-content: center; padding: 24px; 
-        }
-        .setup-content { max-width: 400px; width: 100%; text-align: center; }
+  // Calculated coins
+  const calculatedCoins = activeCat
+    ? activeCat.isEvent
+      ? activeCat.rate
+      : Math.round(activeCat.rate * duration)
+    : 0;
 
-        .field { margin-bottom: 16px; text-align: left; }
-        label { display: block; color: var(--text-muted); font-size: 0.75rem; margin-bottom: 6px; text-transform: uppercase; font-weight: 600; }
-        input, select { 
-            width: 100%; background: var(--bg-secondary); border: 1px solid var(--border); 
-            border-radius: 10px; padding: 12px; color: var(--text-main); font-size: 1rem; outline: none;
-        }
-        
-        button { 
-            width: 100%; background: var(--accent-purple); border: none; border-radius: 10px; padding: 14px; 
-            color: white; font-weight: 700; cursor: pointer; transition: all 0.2s; font-size: 1rem;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-        }
-        button:active { transform: scale(0.98); }
-        button.secondary { background: var(--bg-secondary); border: 1px solid var(--border); }
-        button.danger { background: rgba(251, 113, 133, 0.1); color: var(--color-negative); border: 1px solid var(--color-negative); }
+  // Energetic handleSubmit
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeCat) return;
 
-        .balance-huge { font-size: 3.5rem; font-weight: 800; text-align: center; line-height: 1; margin-top: 8px; }
-        .balance-sub { text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 24px; }
-        .progress-container { height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; margin: 12px 0; }
-        .progress-bar { height: 100%; background: var(--gradient); transition: width 0.5s ease; }
-        .target-stats { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--text-muted); }
+    // Trigger sound
+    if (soundEnabled) {
+      if (activeCat.isAch || activeCat.rate >= 25) {
+        soundFx.playAchievementFanfare();
+      } else {
+        soundFx.playCoinChime();
+      }
+    }
 
-        .attr-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
-        .attr-card { background: var(--bg-card); padding: 16px; border-radius: 16px; border: 1px solid var(--border); }
-        .attr-name { font-weight: 700; font-size: 0.8rem; color: var(--accent-cyan); }
-        .attr-val { font-size: 1.6rem; font-weight: 800; margin: 4px 0; }
-        .attr-reg { font-size: 0.65rem; color: var(--text-muted); min-height: 32px; }
-
-        nav { 
-            position: fixed; bottom: 0; left: 0; right: 0; background: rgba(16, 21, 42, 0.95); 
-            backdrop-filter: blur(12px); border-top: 1px solid var(--border); display: flex; 
-            padding: 10px 0 calc(10px + env(safe-area-inset-bottom)); z-index: 1000;
-        }
-        .nav-item { color: var(--text-muted); font-size: 0.7rem; display: flex; flex-direction: column; align-items: center; cursor: pointer; flex: 1; gap: 4px; }
-        .nav-item.active { color: var(--accent-cyan); }
-        .nav-item svg { width: 22px; height: 22px; }
-
-        .history-item { display: flex; align-items: center; padding: 14px; border-bottom: 1px solid var(--border); gap: 14px; }
-        .history-icon { font-size: 1.4rem; background: var(--bg-secondary); width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 12px; }
-        .history-info { flex: 1; overflow: hidden; }
-        .history-title { font-weight: 700; font-size: 0.95rem; }
-        .history-meta { font-size: 0.75rem; color: var(--text-muted); }
-        .history-coins { font-weight: 800; font-size: 0.95rem; text-align: right; }
-        .del-btn { color: var(--color-negative); font-size: 0.7rem; cursor: pointer; text-decoration: underline; background: none; border: none; }
-
-        .section-title { font-size: 0.8rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin: 24px 0 12px 4px; }
-
-        @media (max-width: 600px) {
-            .attr-grid { grid-template-columns: 1fr; }
-        }
-    </style>
-</head>
-<body>
-
-    <!-- SETUP -->
-    <div id="setup-overlay" class="hidden">
-        <div class="setup-content">
-            <h1 style="background: var(--gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 800;">LEVEL UP</h1>
-            <h2 style="margin: 10px 0;">Begin Your Leveling</h2>
-            <div class="field"><label>Target Coin Balance</label><input type="number" id="setup-target-coins" value="500"></div>
-            <div class="field"><label>Target Date</label><input type="date" id="setup-target-date"></div>
-            <button id="btn-start">START SYSTEM</button>
-            <div style="margin-top: 12px;"><button class="secondary" id="btn-import-setup">IMPORT SAVE DATA</button></div>
-        </div>
-    </div>
-
-    <div class="container">
-        <header>
-            <div><h1>Level Up</h1><p style="font-size: 0.6rem; color: var(--text-muted);">PERSONAL GROWTH TRACKER</p></div>
-            <div class="date-pill" id="header-date">--</div>
-        </header>
-
-        <!-- DASHBOARD -->
-        <section id="view-dashboard">
-            <div class="card">
-                <div id="balance-display" class="balance-huge">0</div>
-                <p class="balance-sub">Current Net Impact (Incl. Achievement Thresholds)</p>
-                <div class="target-stats"><span id="txt-goal-coins">Goal: --</span><span id="txt-goal-date">Target: --</span></div>
-                <div class="progress-container"><div id="goal-bar" class="progress-bar" style="width: 0%"></div></div>
-                <div class="target-stats"><span id="txt-pace">+0 vs pace</span><span id="txt-days-left">-- days left</span></div>
-            </div>
-
-            <div class="attr-grid">
-                <div class="attr-card">
-                    <div class="attr-name">MIND</div>
-                    <div id="val-mind" class="attr-val">25</div>
-                    <div class="progress-container" style="height: 4px;"><div id="bar-mind" class="progress-bar"></div></div>
-                    <div id="reg-mind" class="attr-reg"></div>
-                </div>
-                <div class="attr-card">
-                    <div class="attr-name">BODY</div>
-                    <div id="val-body" class="attr-val">25</div>
-                    <div class="progress-container" style="height: 4px;"><div id="bar-body" class="progress-bar"></div></div>
-                    <div id="reg-body" class="attr-reg"></div>
-                </div>
-                <div class="attr-card">
-                    <div class="attr-name">SPIRIT</div>
-                    <div id="val-spirit" class="attr-val">25</div>
-                    <div class="progress-container" style="height: 4px;"><div id="bar-spirit" class="progress-bar"></div></div>
-                    <div id="reg-spirit" class="attr-reg"></div>
-                </div>
-            </div>
-
-            <div class="section-title">Today</div>
-            <div id="list-today" class="card" style="padding: 0;"></div>
-        </section>
-
-        <!-- LOG -->
-        <section id="view-log" class="hidden">
-            <div class="card">
-                <h2>Log Activity</h2>
-                <div class="field" style="margin-top:15px;">
-                    <label>Activity</label>
-                    <select id="inp-activity">
-                        <optgroup label="Achievements (Repeatable)">
-                            <option value="finish_book">🏆 Finished a Book (+50)</option>
-                            <option value="homecooked">🍳 Homecooked Meal (+5)</option>
-                            <option value="clean_day">✨ Clean Day (No Negative Acts) (+25)</option>
-                            <option value="laundry_all">🧺 Finished all Laundry (+25)</option>
-                            <option value="house_clean">🧹 Fully Cleaned House (+25)</option>
-                            <option value="improvement">🛠️ Home Improvement Project (+100)</option>
-                            <option value="golf_9">⛳ Golf 9 Holes Alone (+10)</option>
-                            <option value="golf_18">⛳ Golf 18 Holes Alone (+25)</option>
-                        </optgroup>
-                        <optgroup label="Earn Coins">
-                            <option value="workout">🏋️ Workout (10/hr)</option>
-                            <option value="cardio">🏃 Cardio (20/hr)</option>
-                            <option value="stretching">🧘 Stretching (40/hr)</option>
-                            <option value="reading">📚 Reading (20/hr)</option>
-                            <option value="overtime">💼 Overtime Work (10/hr)</option>
-                            <option value="laundry">🧺 Laundry (40/hr)</option>
-                            <option value="cleaning">🧹 Cleaning (30/hr)</option>
-                            <option value="journaling">📓 Journaling (10/hr)</option>
-                        </optgroup>
-                        <optgroup label="Spend Coins">
-                            <option value="negative_etc">⚠️ Negative Etc. (-40)</option>
-                            <option value="purchase">💸 Impulse Purchase (-100)</option>
-                            <option value="games">🎮 Video Games (20/hr)</option>
-                            <option value="tv">📺 TV (10/hr)</option>
-                            <option value="social">📱 Social Media (40/hr)</option>
-                        </optgroup>
-                    </select>
-                </div>
-                <div class="field"><label>Date</label><select id="inp-date"></select></div>
-                <div class="field" id="duration-wrap"><label>Duration (Hours)</label><input type="number" id="inp-duration" value="1.00" step="0.25" min="0.25"></div>
-                <div class="field"><label>Note</label><input type="text" id="inp-note" maxlength="120"></div>
-                <div id="log-preview" style="text-align: center; margin: 16px 0; font-weight: 700;"></div>
-                <button id="btn-submit">LOG ACTION</button>
-            </div>
-        </section>
-
-        <!-- HISTORY -->
-        <section id="view-history" class="hidden">
-            <div class="card">
-                <h2>History</h2>
-                <div class="field"><label>Filter</label><select id="inp-filter"><option value="all">All</option><option value="positive">Positive</option><option value="negative">Negative</option></select></div>
-                <div id="list-history"></div>
-            </div>
-        </section>
-
-        <!-- SETTINGS -->
-        <section id="view-settings" class="hidden">
-            <div class="card">
-                <h2>Goal</h2>
-                <div class="field"><label>Target Coins</label><input type="number" id="set-target-coins"></div>
-                <div class="field"><label>Target Date</label><input type="date" id="set-target-date"></div>
-                <button id="btn-update-goal">UPDATE</button>
-            </div>
-            <div class="card">
-                <h2>Data</h2>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <button class="secondary" id="btn-export">EXPORT</button>
-                    <button class="secondary" id="btn-import-main">IMPORT</button>
-                </div>
-                <button class="danger" id="btn-reset" style="margin-top: 12px;">RESET ALL</button>
-            </div>
-        </section>
-    </div>
-
-    <nav>
-        <div class="nav-item active" data-target="view-dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>Dashboard</div>
-        <div class="nav-item" data-target="view-log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>Log</div>
-        <div class="nav-item" data-target="view-history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>History</div>
-        <div class="nav-item" data-target="view-settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"></path></svg>Settings</div>
-    </nav>
-
-    <input type="file" id="file-inp" class="hidden" accept=".json">
-
-    <script>
-        /** DATA DEFINITIONS **/
-        const ACTS = {
-            // Repeatable Achievements
-            finish_book: { label: 'Finished a Book', icon: '🏆', rate: 50, isEvent: true, isAch: true },
-            homecooked: { label: 'Homecooked Meal', icon: '🍳', rate: 5, isEvent: true, isAch: true },
-            clean_day: { label: 'Clean Day (No Negative)', icon: '✨', rate: 25, isEvent: true, isAch: true },
-            laundry_all: { label: 'Finished all Laundry', icon: '🧺', rate: 25, isEvent: true, isAch: true },
-            house_clean: { label: 'Fully Cleaned House', icon: '🧹', rate: 25, isEvent: true, isAch: true },
-            improvement: { label: 'Home Improvement Project', icon: '🛠️', rate: 100, isEvent: true, isAch: true },
-            golf_9: { label: 'Golf 9 Holes Alone', icon: '⛳', rate: 10, isEvent: true, isAch: true },
-            golf_18: { label: 'Golf 18 Holes Alone', icon: '⛳', rate: 25, isEvent: true, isAch: true },
-            
-            // Standard Activities
-            workout: { label: 'Workout', icon: '🏋️', rate: 10, attr: 'body' },
-            cardio: { label: 'Cardio', icon: '🏃', rate: 20, attr: 'body' },
-            stretching: { label: 'Stretching', icon: '🧘', rate: 40, attr: 'body' },
-            reading: { label: 'Reading', icon: '📚', rate: 20, attr: 'mind' },
-            overtime: { label: 'Overtime Work', icon: '💼', rate: 10, attr: 'mind' },
-            laundry: { label: 'Laundry', icon: '🧺', rate: 40, attr: 'spirit' },
-            cleaning: { label: 'Cleaning', icon: '🧹', rate: 30, attr: 'spirit' },
-            journaling: { label: 'Journaling', icon: '📓', rate: 10, attr: 'spirit' },
-
-            // Negative
-            negative_etc: { label: 'Negative Etc.', icon: '⚠️', rate: -40, isEvent: true },
-            purchase: { label: 'Impulse Purchase', icon: '💸', rate: -100, isEvent: true },
-            games: { label: 'Video Games', icon: '🎮', rate: -20 },
-            tv: { label: 'TV', icon: '📺', rate: -10 },
-            social: { label: 'Social Media', icon: '📱', rate: -40 }
-        };
-
-        let state = { setupComplete: false, setupDate: null, targetCoins: 500, targetDate: null, entries: [] };
-
-        /** SYSTEM LOGIC **/
-        const save = () => localStorage.setItem('levelup_v4', JSON.stringify(state));
-        const fmt = (d) => d.toISOString().split('T')[0];
-        const getDays = (d1, d2) => Math.floor((new Date(d2 + 'T00:00:00') - new Date(d1 + 'T00:00:00')) / 86400000);
-
-        const calcStats = () => {
-            const today = fmt(new Date());
-            const res = { mind: 25, body: 25, spirit: 25, regs: {}, thresholdBonus: 0 };
-            
-            ['mind', 'body', 'spirit'].forEach(k => {
-                const q = state.entries.filter(e => {
-                    const a = ACTS[e.activityKey];
-                    if (k === 'spirit') return ['laundry','cleaning','journaling'].includes(e.activityKey);
-                    return a.attr === k;
-                });
-                res[k] += q.length;
-
-                const dates = [...new Set(q.map(e => e.date))].sort();
-                let streak = 0;
-                for (let i = 0; i <= getDays(state.setupDate, today); i++) {
-                    const cd = fmt(new Date(new Date(state.setupDate + 'T00:00:00').getTime() + i * 86400000));
-                    if (dates.includes(cd)) streak = 0; else { streak++; if (streak === 3) { res[k] -= 5; streak = 0; } }
-                    if (cd === today) {
-                        if (dates.includes(today)) res.regs[k] = "Active today.";
-                        else if (streak === 0) res.regs[k] = "No full inactive days.";
-                        else res.regs[k] = `${streak} inactive. ${3-streak} until -5.`;
-                    }
-                }
-                res[k] = Math.max(0, Math.min(100, res[k]));
-
-                // Threshold bonuses (Non-repeatable)
-                if (res[k] >= 50) res.thresholdBonus += 50;
-                if (res[k] >= 75) res.thresholdBonus += 100;
-                if (res[k] >= 100) res.thresholdBonus += 200;
-            });
-            return res;
-        };
-
-        const render = () => {
-            if (!state.setupComplete) { document.getElementById('setup-overlay').classList.remove('hidden'); const d = new Date(); d.setDate(d.getDate()+30); document.getElementById('setup-target-date').value = fmt(d); return; }
-            document.getElementById('setup-overlay').classList.add('hidden');
-
-            const today = fmt(new Date());
-            const stats = calcStats();
-            const entryCoins = state.entries.reduce((s, e) => s + e.coins, 0);
-            const totalBalance = entryCoins + stats.thresholdBonus;
-
-            document.getElementById('header-date').textContent = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-            document.getElementById('balance-display').textContent = totalBalance;
-            document.getElementById('balance-display').className = 'balance-huge ' + (totalBalance >= 0 ? 'text-pos' : 'text-neg');
-
-            const total = getDays(state.setupDate, state.targetDate);
-            const elap = getDays(state.setupDate, today);
-            const pace = Math.round((elap / total) * state.targetCoins);
-            const paceDiff = totalBalance - pace;
-
-            document.getElementById('txt-goal-coins').textContent = `Goal: ${state.targetCoins}`;
-            document.getElementById('txt-goal-date').textContent = `End: ${state.targetDate}`;
-            document.getElementById('goal-bar').style.width = Math.max(0, Math.min(100, (totalBalance / state.targetCoins) * 100)) + '%';
-            document.getElementById('txt-pace').textContent = `${paceDiff>=0?'+':''}${paceDiff} vs pace`;
-            document.getElementById('txt-pace').className = paceDiff >= 0 ? 'text-pos' : 'text-neg';
-            document.getElementById('txt-days-left').textContent = `${getDays(today, state.targetDate)} days left`;
-
-            ['mind', 'body', 'spirit'].forEach(k => {
-                document.getElementById(`val-${k}`).textContent = stats[k];
-                document.getElementById(`bar-${k}`).style.width = stats[k] + '%';
-                document.getElementById(`reg-${k}`).textContent = stats.regs[k];
-            });
-
-            const tEntries = state.entries.filter(e => e.date === today);
-            document.getElementById('list-today').innerHTML = tEntries.length ? tEntries.map(e => renderItem(e, false)).join('') : '<p style="padding:20px;text-align:center;opacity:0.5;">Nothing logged today.</p>';
-
-            const ds = document.getElementById('inp-date'); ds.innerHTML = '';
-            for(let i=0; i<=3; i++) { const d = new Date(); d.setDate(d.getDate()-i); const dsf = fmt(d); ds.innerHTML += `<option value="${dsf}">${i===0?'Today':i+' days ago'} (${dsf})</option>`; }
-            renderHistory();
-        };
-
-        const renderItem = (e, del = true) => {
-            const a = ACTS[e.activityKey];
-            const locked = getDays(e.date, fmt(new Date())) > 3;
-            return `<div class="history-item">
-                <div class="history-icon">${a.icon}</div>
-                <div class="history-info"><div class="history-title">${a.label}</div><div class="history-meta">${e.date} • ${a.isEvent ? 'Achievement/Event' : e.duration+'h'}</div></div>
-                <div class="history-coins ${e.coins>=0 ? (a.isAch ? 'text-gold' : 'text-pos') : 'text-neg'}">
-                    ${e.coins>=0?'+':''}${e.coins}
-                    ${del ? (locked ? '' : `<br><button class="del-btn" onclick="delItem('${e.id}')">Delete</button>`) : ''}
-                </div>
-            </div>`;
-        };
-
-        const renderHistory = () => {
-            const f = document.getElementById('inp-filter').value;
-            let list = [...state.entries].sort((a,b) => b.timestamp - a.timestamp);
-            if (f === 'positive') list = list.filter(e => e.coins >= 0);
-            if (f === 'negative') list = list.filter(e => e.coins < 0);
-            document.getElementById('list-history').innerHTML = list.map(e => renderItem(e)).join('');
-        };
-
-        /** INTERACTIONS **/
-        window.delItem = (id) => { state.entries = state.entries.filter(e => e.id !== id); save(); render(); };
-
-        document.querySelectorAll('.nav-item').forEach(i => i.onclick = () => {
-            document.querySelectorAll('.nav-item').forEach(x => x.classList.remove('active'));
-            i.classList.add('active');
-            document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
-            document.getElementById(i.dataset.target).classList.remove('hidden');
+    // Trigger Energetic Confetti Explosion
+    try {
+      if (activeCat.rate >= 0) {
+        confetti({
+          particleCount: activeCat.isAch ? 80 : 45,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#8b5cf6', '#36d1dc', '#4ade80', '#fbbf24'],
         });
+      }
+    } catch {
+      // Ignore
+    }
 
-        document.getElementById('btn-start').onclick = () => {
-            state.targetCoins = parseInt(document.getElementById('setup-target-coins').value);
-            state.targetDate = document.getElementById('setup-target-date').value;
-            state.setupDate = fmt(new Date()); state.setupComplete = true; save(); render();
-        };
+    // Submit Activity with today's date
+    onLogSubmit(selectedKey, formatDate(new Date()), activeCat.isEvent ? 0 : duration, note);
 
-        const updatePreview = () => {
-            const k = document.getElementById('inp-activity').value; const a = ACTS[k]; const d = parseFloat(document.getElementById('inp-duration').value) || 0;
-            document.getElementById('duration-wrap').style.display = a.isEvent ? 'none' : 'block';
-            const coins = a.isEvent ? a.rate : Math.round(a.rate * d);
-            document.getElementById('log-preview').innerHTML = `<span class="${coins>=0?'text-pos':'text-neg'}">${coins>=0?'+':''}${coins} Coins</span> • ${a.attr?a.attr.toUpperCase(): (a.isAch ? 'ACHIEVEMENT' : 'NO STAT')}`;
-        };
+    // Show energetic celebration banner
+    setLoggedDetails({ coins: calculatedCoins, label: activeCat.label });
+    setIsLogged(true);
+    setNote('');
 
-        document.getElementById('inp-activity').onchange = updatePreview;
-        document.getElementById('inp-duration').oninput = updatePreview;
+    setTimeout(() => {
+      setIsLogged(false);
+    }, 2500);
+  };
 
-        document.getElementById('btn-submit').onclick = () => {
-            const k = document.getElementById('inp-activity').value; const a = ACTS[k];
-            const dur = parseFloat(document.getElementById('inp-duration').value);
-            state.entries.push({ id: 'id'+Date.now(), activityKey: k, date: document.getElementById('inp-date').value, duration: a.isEvent ? 0 : dur, note: document.getElementById('inp-note').value, coins: a.isEvent ? a.rate : Math.round(a.rate * dur), timestamp: Date.now() });
-            document.getElementById('inp-note').value = ''; save(); render();
-        };
+  // Group categories
+  const achievementCategories = categories.filter((c) => c.isAch);
+  const earnCategories = categories.filter((c) => !c.isAch && c.rate > 0);
+  const spendCategories = categories.filter((c) => c.rate < 0);
+  const customCategories = categories.filter((c) => c.isCustom);
 
-        document.getElementById('btn-export').onclick = () => {
-            const blob = new Blob([JSON.stringify(state)], {type: 'application/json'});
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `levelup_save.json`; a.click();
-        };
+  return (
+    <div className="space-y-6 pb-20">
+      {/* Energetic Celebration Banner Overlay */}
+      {isLogged && loggedDetails && (
+        <div className="bg-gradient-to-r from-purple-600 via-indigo-600 to-cyan-500 p-4 rounded-2xl shadow-2xl text-white text-center animate-bounce border border-white/20 flex flex-col items-center justify-center gap-1">
+          <div className="flex items-center gap-2 text-lg font-black tracking-wide uppercase">
+            <Sparkles className="w-6 h-6 text-amber-300 animate-spin" />
+            <span>Activity Logged Successfully!</span>
+            <Sparkles className="w-6 h-6 text-amber-300 animate-spin" />
+          </div>
+          <p className="text-sm font-bold text-cyan-100">
+            {loggedDetails.label}:{' '}
+            <span className="text-amber-300 font-black text-base">
+              {loggedDetails.coins >= 0 ? `+${loggedDetails.coins}` : loggedDetails.coins} Coins 🪙
+            </span>
+          </p>
+        </div>
+      )}
 
-        document.getElementById('file-inp').onchange = (e) => {
-            const reader = new FileReader(); reader.onload = (ev) => { state = JSON.parse(ev.target.result); save(); location.reload(); }; reader.readAsText(e.target.files[0]);
-        };
-        document.getElementById('btn-import-setup').onclick = () => document.getElementById('file-inp').click();
-        document.getElementById('btn-import-main').onclick = () => document.getElementById('file-inp').click();
-        document.getElementById('btn-reset').onclick = () => { if(confirm("Reset everything?")) { localStorage.clear(); location.reload(); } };
-        document.getElementById('btn-update-goal').onclick = () => { state.targetCoins = parseInt(document.getElementById('set-target-coins').value); state.targetDate = document.getElementById('set-target-date').value; save(); render(); };
+      {/* Main Form Card */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl relative">
+        <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-800">
+          <div>
+            <h2 className="text-lg font-black tracking-wider text-white uppercase flex items-center gap-2">
+              <PlusCircle className="w-5 h-5 text-cyan-400" />
+              Log Activity / Short Term Achievement
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Select an achievement or activity to earn coins & advance skill trees
+            </p>
+          </div>
 
-        const stored = localStorage.getItem('levelup_v4'); if (stored) state = JSON.parse(stored);
-        render(); updatePreview();
-    </script>
-</body>
-</html>
+          <button
+            onClick={onOpenCategoryModal}
+            className="text-xs font-bold text-cyan-300 bg-cyan-950/70 hover:bg-cyan-900/80 border border-cyan-500/40 px-3 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-sm shadow-cyan-500/10"
+          >
+            <FolderPlus className="w-4 h-4 text-cyan-400" />
+            <span>+ Custom Category</span>
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Category Dropdown & Quick Select */}
+          <div className="space-y-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-300">
+              Select Activity or Achievement
+            </label>
+
+            <select
+              value={selectedKey}
+              onChange={(e) => setSelectedKey(e.target.value)}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-sm font-medium focus:outline-none focus:border-cyan-500 transition-colors"
+            >
+              {achievementCategories.length > 0 && (
+                <optgroup label="🏆 Achievements (Coin Rewards)">
+                  {achievementCategories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.icon} {c.label} (+{c.rate} Coins)
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+
+              {earnCategories.length > 0 && (
+                <optgroup label="⚡ Hour-Based Activities (Advances Skill Tree)">
+                  {earnCategories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.icon} {c.label} (+{c.rate}/hr) [{c.skill.toUpperCase()}]
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+
+              {spendCategories.length > 0 && (
+                <optgroup label="⚠️ Spend Coins (Negative Habits)">
+                  {spendCategories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.icon} {c.label} ({c.rate} Coins)
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+
+              {customCategories.length > 0 && (
+                <optgroup label="🎨 Your Custom Categories">
+                  {customCategories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.icon} {c.label} ({c.rate >= 0 ? `+${c.rate}` : c.rate}
+                      {c.isEvent ? '' : '/hr'}) [{c.skill.toUpperCase()}]
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+          </div>
+
+          {/* Duration Selector (Only for duration-based activities) */}
+          {!activeCat?.isEvent && (
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-cyan-400" /> Duration (Hours)
+                </label>
+                <span className="text-xs font-extrabold text-cyan-400">{duration} Hour{duration === 1 ? '' : 's'}</span>
+              </div>
+
+              <div className="grid grid-cols-5 gap-1.5">
+                {[0.25, 0.5, 1.0, 1.5, 2.0].map((h) => (
+                  <button
+                    key={h}
+                    type="button"
+                    onClick={() => setDuration(h)}
+                    className={`py-2 text-xs font-bold rounded-xl border transition-all ${
+                      duration === h
+                        ? 'bg-purple-950 border-purple-500 text-purple-300 shadow-sm'
+                        : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {h}h
+                  </button>
+                ))}
+              </div>
+
+              <input
+                type="number"
+                step="0.25"
+                min="0.25"
+                max="24"
+                value={duration}
+                onChange={(e) => setDuration(parseFloat(e.target.value) || 0.25)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-white text-xs mt-1"
+                placeholder="Or enter custom hours..."
+              />
+            </div>
+          )}
+
+          {/* Note Input */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-300">
+              Note (Optional)
+            </label>
+            <input
+              type="text"
+              maxLength={120}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. Read chapter 3 of WSJ technology section..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white text-xs focus:outline-none focus:border-cyan-500"
+            />
+          </div>
+
+          {/* Live Coin Impact & Skill Badge Preview */}
+          <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                Coin Impact Preview
+              </span>
+              <div
+                className={`text-xl font-black ${
+                  calculatedCoins >= 0 ? 'text-emerald-400' : 'text-rose-400'
+                }`}
+              >
+                {calculatedCoins >= 0 ? `+${calculatedCoins}` : calculatedCoins} Coins 🪙
+              </div>
+            </div>
+
+            <div className="text-right">
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">
+                Skill Tree Progress
+              </span>
+              <span
+                className={`inline-block text-xs font-extrabold px-3 py-1 rounded-full uppercase border ${
+                  !activeCat?.isEvent && activeCat?.skill === 'mind'
+                    ? 'bg-cyan-950/80 border-cyan-500/50 text-cyan-300'
+                    : !activeCat?.isEvent && activeCat?.skill === 'body'
+                    ? 'bg-emerald-950/80 border-emerald-500/50 text-emerald-300'
+                    : !activeCat?.isEvent && activeCat?.skill === 'spirit'
+                    ? 'bg-purple-950/80 border-purple-500/50 text-purple-300'
+                    : 'bg-slate-800 border-slate-700 text-slate-400'
+                }`}
+              >
+                {!activeCat?.isEvent && activeCat?.skill === 'mind'
+                  ? '🧠 Mind (+hr)'
+                  : !activeCat?.isEvent && activeCat?.skill === 'body'
+                  ? '🏋️ Body (+hr)'
+                  : !activeCat?.isEvent && activeCat?.skill === 'spirit'
+                  ? '🧘 Spirit (+hr)'
+                  : '🪙 Coin Only'}
+              </span>
+            </div>
+          </div>
+
+          {/* ENERGETIC PULSING LOG BUTTON */}
+          <div className="pt-2">
+            <button
+              type="submit"
+              className="w-full relative group overflow-hidden rounded-2xl p-[2px] focus:outline-none transition-transform active:scale-95 shadow-xl shadow-purple-600/30"
+            >
+              {/* Energetic animated glowing background ring */}
+              <span className="absolute inset-0 bg-gradient-to-r from-purple-600 via-cyan-400 via-emerald-400 to-purple-600 rounded-2xl animate-pulse group-hover:scale-105 transition-transform duration-500" />
+
+              <div className="relative bg-gradient-to-r from-purple-700 via-indigo-600 to-cyan-600 group-hover:from-purple-600 group-hover:to-cyan-500 rounded-2xl py-4 px-6 text-white font-extrabold text-base tracking-wider uppercase flex items-center justify-center gap-2 shadow-inner transition-all">
+                <Sparkles className="w-5 h-5 text-amber-300 animate-spin" />
+                <span>LOG ACTION NOW ⚡</span>
+                <Flame className="w-5 h-5 text-amber-300 animate-bounce" />
+              </div>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
